@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Timeshare Calculator</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body style="margin:0;padding:0;">
+
+<!-- ============================================================
+     ✅ CONFIGURATION — PASTE YOUR APPS SCRIPT URL BELOW
+     After deploying your Apps Script, paste the Web App URL here.
+     ============================================================ -->
+<script>
+  window.APP_CONFIG = {
+    // Paste your Google Apps Script Web App URL here.
+    // You get this URL after deploying the script (see setup instructions).
+    APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzvRU_xfv8QVTHfpcruGz0esdYnnapDbW8DZ0OmaXxD2gpYV-bWOo3gYhM4MNQUtR07YA/exec',
+  };
+</script>
+<!-- ============================================================ -->
+
+<div id="root"></div>
+<script type="text/babel">
+
+const Printer   = ({ size = 24 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>;
+const ChevronRight = ({ size = 24 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"></polyline></svg>;
+const ChevronLeft  = ({ size = 24 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"></polyline></svg>;
+const Check    = ({ size = 24 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"></polyline></svg>;
+const Edit2    = ({ size = 24 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>;
+const User     = ({ size = 24 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>;
+const Building2= ({ size = 24 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"></path><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"></path><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"></path><path d="M10 6h4"></path><path d="M10 10h4"></path><path d="M10 14h4"></path><path d="M10 18h4"></path></svg>;
+const DollarSign = ({ size = 24 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>;
+const TrendingUp = ({ size = 24 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>;
+const Download = ({ size = 24 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>;
+const Cloud    = ({ size = 24 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path></svg>;
+const LinkIcon = ({ size = 24 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>;
+
+const { useState, useRef } = React;
+
+// ─── Send PDF to Apps Script web app ────────────────────────────────────────────
+async function sendToAppsScript(scriptUrl, pdfBlob, fileName, ownerName, resortName) {
+  // Convert blob to base64
+  const arrayBuffer = await pdfBlob.arrayBuffer();
+  const uint8 = new Uint8Array(arrayBuffer);
+  let binary = "";
+  for (let i = 0; i < uint8.length; i++) binary += String.fromCharCode(uint8[i]);
+  const pdfBase64 = btoa(binary);
+
+  const payload = {
+    action: "savePdf",
+    pdfBase64,
+    fileName,
+    ownerName,
+    resortName,
+  };
+
+  const res = await fetch(scriptUrl, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain" },
+    body: JSON.stringify(payload),
+    redirect: "follow",
+  });
+
+  if (!res.ok) throw new Error("Apps Script returned status " + res.status);
+  const result = await res.json();
+  if (!result.success) throw new Error(result.error || "Apps Script error");
+  return result;
+}
+
+// ─── Generate PDF blob from DOM element ───────────────────────────────────────
+async function generatePdfBlob(element) {
+  const { jsPDF } = window.jspdf;
+  const pages = element.querySelectorAll('.print-page');
+  const pdf = new jsPDF('p', 'pt', 'letter');
+
+  for (let i = 0; i < pages.length; i++) {
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'background:white;padding:40px;width:612px;box-sizing:border-box;position:fixed;left:-9999px;top:0;';
+    const clone = pages[i].cloneNode(true);
+    // Remove no-print elements from clone
+    clone.querySelectorAll('.no-print').forEach(el => el.remove());
+    wrapper.appendChild(clone);
+    document.body.appendChild(wrapper);
+
+    const canvas = await window.html2canvas(wrapper, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff',
+      width: 692,
+      windowWidth: 692,
+    });
+
+    document.body.removeChild(wrapper);
+
+    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+    const imgWidth = 612;
+    const actualHeight = (canvas.height * imgWidth) / canvas.width;
+    const pageHeight = 792;
+
+    if (i > 0) pdf.addPage();
+    pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, Math.min(actualHeight, pageHeight));
+  }
+
+  return pdf.output('blob');
+}
+
+// ─── Main Component ────────────────────────────────────────────────────────────
+function TimeshareCalculator() {
+  const [step, setStep] = useState(1);
+  const [formData, setFormData] = useState({
+    owner1Name: '',
+    owner2Name: '',
+    owner3Name: '',
+    owner4Name: '',
+    homeAddress: '',
+    city: '',
+    state: '',
+    zip: '',
+    homePhone: '',
+    mobilePhone1: '',
+    mobilePhone2: '',
+    email1: '',
+    email2: '',
+    mortgage: 0,
+    resorts: [
+      { name: '', address: '', city: '', state: '', zip: '', maintenanceFee: 0, inflationRate: 8.3, ownershipType: '', weekNumber: '', active: true },
+      { name: '', address: '', city: '', state: '', zip: '', maintenanceFee: 0, inflationRate: 6.7, ownershipType: '', weekNumber: '', active: false },
+      { name: '', address: '', city: '', state: '', zip: '', maintenanceFee: 0, inflationRate: 6.7, ownershipType: '', weekNumber: '', active: false },
+      { name: '', address: '', city: '', state: '', zip: '', maintenanceFee: 0, inflationRate: 6.7, ownershipType: '', weekNumber: '', active: false },
+    ],
+    transferFees: 1800,
+    processingFee: 449,
+    mra: 12500,
+  });
+
+  const [dropSheetData, setDropSheetData] = useState([]);
+  const [editingDropSheet, setEditingDropSheet] = useState(null);
+  // saveStatus: { [idx]: 'idle' | 'generating' | 'uploading' | 'done' | 'error' }
+  const [saveStatus, setSaveStatus] = useState({});
+  const [savedLinks, setSavedLinks] = useState({});
+
+  const formatCurrency = (num) =>
+    (parseFloat(num) || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+  const calculateProjections = (maintenanceFee, inflationRate) => {
+    const rate = inflationRate / 100;
+    const years = [];
+    let cumulative = 0;
+    for (let year = 1; year <= 30; year++) {
+      const annualCost = maintenanceFee * Math.pow(1 + rate, year);
+      cumulative += annualCost;
+      years.push({ year, annualCost, cumulative });
+    }
+    return { years, totalInflation: cumulative, year30Cost: years[29].annualCost };
+  };
+
+  const generateDropSheets = () => {
+    const sheets = formData.resorts
+      .filter(resort => resort.active && resort.maintenanceFee > 0)
+      .map((resort) => {
+        const projections = calculateProjections(resort.maintenanceFee, resort.inflationRate);
+        const year20Cumulative = projections.years[19].cumulative;
+        const grossLiquidation = year20Cumulative + formData.transferFees + formData.processingFee;
+        const eboc = grossLiquidation - formData.mra;
+        return {
+          resortName: resort.name,
+          owner: formData.owner1Name,
+          address: formData.homeAddress,
+          phone: formData.mobilePhone1 || formData.homePhone,
+          inflationRate: resort.inflationRate,
+          currentMaintFee: resort.maintenanceFee,
+          maintFeeInflation: projections.totalInflation,
+          year20Cumulative,
+          mortgage: formData.mortgage,
+          totalCost: resort.maintenanceFee + projections.totalInflation + formData.mortgage,
+          transferFees: formData.transferFees,
+          processingFee: formData.processingFee,
+          mra: formData.mra,
+          grossLiquidation,
+          eboc,
+          projections: projections.years,
+        };
+      });
+    setDropSheetData(sheets);
+    setSaveStatus({});
+    setSavedLinks({});
+  };
+
+  const handleInputChange = (field, value) =>
+    setFormData(prev => ({ ...prev, [field]: value }));
+
+  const handleResortChange = (index, field, value) =>
+    setFormData(prev => ({
+      ...prev,
+      resorts: prev.resorts.map((r, i) => i === index ? { ...r, [field]: value } : r),
+    }));
+
+  const handleDropSheetEdit = (sheetIndex, field, value) => {
+    setDropSheetData(prev => prev.map((sheet, i) => {
+      if (i !== sheetIndex) return sheet;
+      const updated = { ...sheet, [field]: parseFloat(value) || 0 };
+      if (['transferFees', 'processingFee', 'mra'].includes(field)) {
+        updated.grossLiquidation = updated.year20Cumulative + updated.transferFees + updated.processingFee;
+        updated.eboc = updated.grossLiquidation - updated.mra;
+      }
+      return updated;
+    }));
+  };
+
+  const goToDropSheets = () => { generateDropSheets(); setStep(2); };
+
+  const printDropSheet = () => {
+    setTimeout(() => window.print(), 100);
+  };
+
+  // ─── Save to Google Drive via Apps Script ─────────────────────────────────
+  const saveToGoogleDrive = async (sheetIndex) => {
+    const cfg = window.APP_CONFIG;
+
+    if (!cfg.APPS_SCRIPT_URL || cfg.APPS_SCRIPT_URL === 'YOUR_APPS_SCRIPT_URL') {
+      alert('Please paste your Apps Script Web App URL into APPS_SCRIPT_URL at the top of this HTML file.');
+      return;
+    }
+
+    setSaveStatus(prev => ({ ...prev, [sheetIndex]: 'generating' }));
+
+    try {
+      // 1. Generate PDF
+      const element = document.getElementById('drop-sheet-' + sheetIndex);
+      const sheet = dropSheetData[sheetIndex];
+      const safeOwner  = (sheet.owner      || 'Client').replace(/[^a-zA-Z0-9 _-]/g, '').trim().replace(/\s+/g, '-');
+      const safeResort = (sheet.resortName || 'Resort').replace(/[^a-zA-Z0-9 _-]/g, '').trim().replace(/\s+/g, '-');
+      const dateStr    = new Date().toISOString().slice(0, 10);
+      const fileName   = safeOwner + '_' + safeResort + '_' + dateStr + '.pdf';
+
+      const pdfBlob = await generatePdfBlob(element);
+
+      // 2. Send to Apps Script (handles Drive upload + Sheet logging)
+      setSaveStatus(prev => ({ ...prev, [sheetIndex]: 'uploading' }));
+      const result = await sendToAppsScript(
+        cfg.APPS_SCRIPT_URL,
+        pdfBlob,
+        fileName,
+        sheet.owner || 'Client',
+        sheet.resortName || 'Resort'
+      );
+
+      // 3. Done!
+      setSavedLinks(prev => ({ ...prev, [sheetIndex]: result.fileUrl }));
+      setSaveStatus(prev => ({ ...prev, [sheetIndex]: 'done' }));
+
+    } catch (err) {
+      console.error('Save to Drive error:', err);
+      setSaveStatus(prev => ({ ...prev, [sheetIndex]: 'error' }));
+      alert('Error saving to Drive: ' + err.message + '
+
+Make sure your APPS_SCRIPT_URL is correct and deployed as Anyone can access.');
+    }
+  };
+
+  const activeResorts = formData.resorts.filter(r => r.active);
+  const totalAnnualMaint = activeResorts.reduce((sum, r) => sum + (parseFloat(r.maintenanceFee) || 0), 0);
+
+  const SaveButton = ({ idx }) => {
+    const status = saveStatus[idx] || 'idle';
+    const link = savedLinks[idx];
+
+    const btnStyle = {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '10px',
+      padding: '16px 32px',
+      borderRadius: '16px',
+      border: 'none',
+      fontWeight: '700',
+      fontSize: '15px',
+      cursor: status === 'idle' || status === 'done' || status === 'error' ? 'pointer' : 'not-allowed',
+      transition: 'all 0.3s ease',
+    };
+
+    if (status === 'done') {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+          <button
+            onClick={() => saveToGoogleDrive(idx)}
+            style={{ ...btnStyle, background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white', boxShadow: '0 4px 16px rgba(16,185,129,0.3)' }}
+          >
+            <Check size={20} />
+            Saved! Save Again
+          </button>
+          <a
+            href={link}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: '6px',
+              color: '#60a5fa', fontSize: '13px', fontWeight: '600', textDecoration: 'none',
+            }}
+          >
+            <LinkIcon size={14} />
+            View PDF in Google Drive
+          </a>
+        </div>
+      );
+    }
+
+    const isLoading = status === 'generating' || status === 'uploading';
+    const label = status === 'generating' ? 'Generating PDF…' : status === 'uploading' ? 'Uploading to Drive…' : status === 'error' ? 'Retry Save to Drive' : 'Save to Drive';
+    const bg = status === 'error'
+      ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
+      : 'linear-gradient(135deg, #4285f4 0%, #34a853 100%)';
+
+    return (
+      <button
+        onClick={() => !isLoading && saveToGoogleDrive(idx)}
+        style={{ ...btnStyle, background: bg, color: 'white', boxShadow: '0 4px 16px rgba(66,133,244,0.3)', opacity: isLoading ? 0.7 : 1 }}
+      >
+        {isLoading ? (
+          <span style={{ display: 'inline-block', width: '20px', height: '20px', border: '3px solid rgba(255,255,255,0.4)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+        ) : (
+          <Cloud size={20} />
+        )}
+        {label}
+      </button>
+    );
+  };
+
+  return (
+    <div className="main-wrapper" style={{ minHeight: '100vh', background: '#000000', margin: 0, padding: 0 }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; -webkit-font-smoothing: antialiased; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .glass-card { background: #0a0a0a; border-radius: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.5); border: 1px solid #1a1a1a; }
+        .input-field { background: #000000; border: 2px solid #1a1a1a; border-radius: 12px; padding: 14px 16px; color: #e2e8f0; width: 100%; font-size: 15px; transition: all 0.2s ease; font-weight: 500; }
+        .input-field:focus { outline: none; background: #0a0a0a; border-color: #7c3aed; box-shadow: 0 0 0 4px rgba(124,58,237,0.1); }
+        .input-field::placeholder { color: #64748b; font-weight: 400; }
+        .btn-primary { background: linear-gradient(135deg, #7c3aed 0%, #60a5fa 100%); color: white; padding: 16px 32px; border-radius: 16px; border: none; font-weight: 700; font-size: 15px; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 16px rgba(124,58,237,0.3); letter-spacing: 0.3px; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(124,58,237,0.4); }
+        .btn-primary:active { transform: translateY(0); }
+        .btn-secondary { background: #0a0a0a; color: #e2e8f0; padding: 14px 28px; border-radius: 14px; border: 2px solid #1a1a1a; font-weight: 600; font-size: 15px; cursor: pointer; transition: all 0.2s ease; }
+        .btn-secondary:hover { background: #1a1a1a; border-color: #7c3aed; }
+        .section-card { background: #0a0a0a; border-radius: 20px; padding: 28px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.5); transition: all 0.3s ease; border: 1px solid #1a1a1a; }
+        .section-card:hover { box-shadow: 0 4px 16px rgba(124,58,237,0.2); border-color: #7c3aed; }
+        .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #7c3aed; }
+        .section-title { font-size: 20px; font-weight: 700; color: #e2e8f0; }
+        .icon-wrapper { width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(135deg, #7c3aed 0%, #60a5fa 100%); display: flex; align-items: center; justify-content: center; color: white; }
+        .resort-card { background: #000000; border-radius: 16px; padding: 24px; margin-bottom: 16px; border: 2px solid #1a1a1a; transition: all 0.3s ease; }
+        .resort-card.inactive { opacity: 0.5; }
+        .resort-card.active { border-color: #7c3aed; background: #0a0a0a; box-shadow: 0 0 20px rgba(124,58,237,0.2); }
+        .toggle-switch { position: relative; width: 56px; height: 32px; background: #1a1a1a; border-radius: 16px; cursor: pointer; transition: all 0.3s ease; }
+        .toggle-switch.active { background: linear-gradient(135deg, #7c3aed 0%, #60a5fa 100%); }
+        .toggle-slider { position: absolute; top: 4px; left: 4px; width: 24px; height: 24px; background: white; border-radius: 12px; transition: all 0.3s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        .toggle-switch.active .toggle-slider { left: 28px; }
+        .label { font-size: 13px; font-weight: 600; color: #94a3b8; margin-bottom: 8px; display: block; letter-spacing: 0.3px; }
+        .stat-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; padding: 20px; color: white; }
+        .stat-label { font-size: 13px; font-weight: 600; opacity: 0.9; margin-bottom: 8px; letter-spacing: 0.5px; }
+        .stat-value { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; }
+        .step-indicator { background: #0a0a0a; border: 2px solid #1a1a1a; border-radius: 12px; padding: 8px 20px; font-size: 14px; font-weight: 600; color: #94a3b8; transition: all 0.3s ease; }
+        .step-indicator.active { background: linear-gradient(135deg, #7c3aed 0%, #60a5fa 100%); color: white; border-color: transparent; }
+        .calculation-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        .calculation-table th { background: #000000; padding: 14px 16px; text-align: left; font-weight: 700; color: #94a3b8; font-size: 13px; letter-spacing: 0.5px; text-transform: uppercase; }
+        .calculation-table td { padding: 14px 16px; border-bottom: 1px solid #1a1a1a; color: #e2e8f0; font-weight: 500; }
+        .calculation-table tr:hover { background: #0a0a0a; }
+        .fade-in { animation: fadeIn 0.4s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+        @media (max-width: 768px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+        /* PRINT STYLES */
+        @media print {
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          @page { size: letter; margin: 0.5in; }
+          html { background: white !important; height: 100% !important; }
+          body { background: white !important; margin: 0 !important; padding: 0 !important; width: 100% !important; height: 100% !important; font-size: 11px !important; }
+          #root { background: white !important; }
+          .main-wrapper { background: white !important; min-height: 0 !important; }
+          .no-print { display: none !important; }
+          .print-page { page-break-after: always !important; page-break-inside: avoid !important; width: 100% !important; max-width: 100% !important; padding: 20px !important; margin: 0 !important; background: white !important; min-height: 100vh !important; box-sizing: border-box !important; position: relative !important; }
+          .print-page:last-child { page-break-after: auto !important; min-height: auto !important; }
+          .print-page * { color: black !important; }
+          .print-page div, .print-page span, .print-page p, .print-page td, .print-page th, .print-page strong { background: transparent !important; }
+          .avoid-break { page-break-inside: avoid !important; break-inside: avoid !important; }
+          h1 { font-size: 16px !important; margin-bottom: 8px !important; }
+          h2 { font-size: 14px !important; margin-bottom: 6px !important; }
+          h3 { font-size: 12px !important; margin-bottom: 6px !important; }
+          .print-header { border-bottom: 2px solid #000 !important; padding-bottom: 10px !important; margin-bottom: 15px !important; }
+          .print-info-grid { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 6px !important; font-size: 10px !important; margin-bottom: 10px !important; }
+          .comparison-grid { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 20px !important; margin-bottom: 15px !important; }
+          .option-box { font-size: 10px !important; line-height: 1.4 !important; border-width: 2px !important; }
+          .option-header { padding: 8px !important; margin-bottom: 8px !important; font-size: 11px !important; }
+          .cost-box { padding: 10px !important; margin-top: 10px !important; font-size: 10px !important; }
+          .cost-box, .cost-box * { color: black !important; }
+          .option-header { color: black !important; }
+          .option-header * { color: black !important; }
+          .cost-row { margin-bottom: 6px !important; }
+          .cost-total { padding-top: 6px !important; margin-top: 6px !important; font-size: 11px !important; }
+          table { page-break-inside: auto !important; font-size: 9px !important; margin: 10px 0 !important; }
+          table th { padding: 6px 4px !important; font-size: 9px !important; }
+          table td { padding: 5px 4px !important; font-size: 9px !important; }
+          tr { page-break-inside: avoid !important; page-break-after: auto !important; }
+          .signature-section { margin-top: 15px !important; padding: 12px !important; border: 2px solid #000 !important; font-size: 10px !important; }
+          .signature-line { border-bottom: 1px solid #000 !important; margin-bottom: 3px !important; }
+          input[type="number"] { border: none !important; background: transparent !important; font-weight: bold !important; }
+        }
+      `}</style>
+
+      {/* Header */}
+      <div className="no-print" style={{ padding: '24px 0', borderBottom: '2px solid #7c3aed', background: '#000000' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 24px' }}>
+          <h1 style={{ fontSize: '32px', fontWeight: '800', background: 'linear-gradient(135deg, #7c3aed 0%, #60a5fa 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', marginBottom: '20px', letterSpacing: '-0.5px' }}>
+            Timeshare Calculator
+          </h1>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            <div className={`step-indicator ${step === 1 ? 'active' : ''}`}>1. Input</div>
+            <div className={`step-indicator ${step === 2 ? 'active' : ''}`}>2. Drop Sheets</div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '32px 24px' }}>
+
+        {/* ── STEP 1: Input ── */}
+        {step === 1 && (
+          <div className="fade-in">
+
+            {/* Summary Stats */}
+            <div className="grid-3" style={{ marginBottom: '24px' }}>
+              <div className="stat-card">
+                <div className="stat-label">ACTIVE RESORTS</div>
+                <div className="stat-value">{activeResorts.length}</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-label">TOTAL ANNUAL MAINT.</div>
+                <div className="stat-value">${formatCurrency(totalAnnualMaint)}</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-label">MORTGAGE BALANCE</div>
+                <div className="stat-value">${formatCurrency(formData.mortgage)}</div>
+              </div>
+            </div>
+
+            {/* Owner Information */}
+            <div className="section-card">
+              <div className="section-header">
+                <div className="icon-wrapper"><User size={20} /></div>
+                <h2 className="section-title">Owner Information</h2>
+              </div>
+              <div className="grid-2" style={{ marginBottom: '16px' }}>
+                <div>
+                  <label className="label">Owner 1 Name *</label>
+                  <input type="text" className="input-field" value={formData.owner1Name} onChange={e => handleInputChange('owner1Name', e.target.value)} placeholder="John Smith" />
+                </div>
+                <div>
+                  <label className="label">Owner 2 Name</label>
+                  <input type="text" className="input-field" value={formData.owner2Name} onChange={e => handleInputChange('owner2Name', e.target.value)} placeholder="Jane Smith" />
+                </div>
+                <div>
+                  <label className="label">Owner 3 Name</label>
+                  <input type="text" className="input-field" value={formData.owner3Name} onChange={e => handleInputChange('owner3Name', e.target.value)} placeholder="Optional" />
+                </div>
+                <div>
+                  <label className="label">Owner 4 Name</label>
+                  <input type="text" className="input-field" value={formData.owner4Name} onChange={e => handleInputChange('owner4Name', e.target.value)} placeholder="Optional" />
+                </div>
+              </div>
+              <div className="grid-3" style={{ marginBottom: '16px' }}>
+                <div style={{ gridColumn: 'span 2' }}>
+                  <label className="label">Home Address</label>
+                  <input type="text" className="input-field" value={formData.homeAddress} onChange={e => handleInputChange('homeAddress', e.target.value)} placeholder="123 Main Street" />
+                </div>
+                <div>
+                  <label className="label">City</label>
+                  <input type="text" className="input-field" value={formData.city} onChange={e => handleInputChange('city', e.target.value)} placeholder="Orlando" />
+                </div>
+              </div>
+              <div className="grid-3" style={{ marginBottom: '16px' }}>
+                <div>
+                  <label className="label">State</label>
+                  <input type="text" className="input-field" value={formData.state} onChange={e => handleInputChange('state', e.target.value)} placeholder="FL" />
+                </div>
+                <div>
+                  <label className="label">ZIP Code</label>
+                  <input type="text" className="input-field" value={formData.zip} onChange={e => handleInputChange('zip', e.target.value)} placeholder="32801" />
+                </div>
+                <div>
+                  <label className="label">Home Phone</label>
+                  <input type="tel" className="input-field" value={formData.homePhone} onChange={e => handleInputChange('homePhone', e.target.value)} placeholder="(555) 000-0000" />
+                </div>
+              </div>
+              <div className="grid-3">
+                <div>
+                  <label className="label">Mobile Phone 1</label>
+                  <input type="tel" className="input-field" value={formData.mobilePhone1} onChange={e => handleInputChange('mobilePhone1', e.target.value)} placeholder="(555) 000-0000" />
+                </div>
+                <div>
+                  <label className="label">Mobile Phone 2</label>
+                  <input type="tel" className="input-field" value={formData.mobilePhone2} onChange={e => handleInputChange('mobilePhone2', e.target.value)} placeholder="(555) 000-0000" />
+                </div>
+                <div>
+                  <label className="label">Email 1</label>
+                  <input type="email" className="input-field" value={formData.email1} onChange={e => handleInputChange('email1', e.target.value)} placeholder="john@email.com" />
+                </div>
+              </div>
+            </div>
+
+            {/* Mortgage */}
+            <div className="section-card">
+              <div className="section-header">
+                <div className="icon-wrapper"><DollarSign size={20} /></div>
+                <h2 className="section-title">Mortgage Information</h2>
+              </div>
+              <div style={{ maxWidth: '300px' }}>
+                <label className="label">Mortgage Balance</label>
+                <input type="number" className="input-field" value={formData.mortgage} onChange={e => handleInputChange('mortgage', parseFloat(e.target.value) || 0)} placeholder="0" />
+              </div>
+            </div>
+
+            {/* Resorts */}
+            <div className="section-card">
+              <div className="section-header">
+                <div className="icon-wrapper"><Building2 size={20} /></div>
+                <h2 className="section-title">Resort Information</h2>
+              </div>
+              {formData.resorts.map((resort, index) => (
+                <div key={index} className={`resort-card ${resort.active ? 'active' : 'inactive'}`}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: resort.active ? '20px' : '0' }}>
+                    <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#e2e8f0' }}>Resort {index + 1}</h3>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: '600' }}>{resort.active ? 'Active' : 'Inactive'}</span>
+                      <div className={`toggle-switch ${resort.active ? 'active' : ''}`} onClick={() => handleResortChange(index, 'active', !resort.active)}>
+                        <div className="toggle-slider" />
+                      </div>
+                    </div>
+                  </div>
+                  {resort.active && (
+                    <div>
+                      <div className="grid-2" style={{ marginBottom: '16px' }}>
+                        <div>
+                          <label className="label">Resort Name</label>
+                          <input type="text" className="input-field" value={resort.name} onChange={e => handleResortChange(index, 'name', e.target.value)} placeholder="Marriott Vacation Club" />
+                        </div>
+                        <div>
+                          <label className="label">Resort Address</label>
+                          <input type="text" className="input-field" value={resort.address} onChange={e => handleResortChange(index, 'address', e.target.value)} placeholder="123 Resort Blvd" />
+                        </div>
+                      </div>
+                      <div className="grid-3" style={{ marginBottom: '16px' }}>
+                        <div>
+                          <label className="label">City</label>
+                          <input type="text" className="input-field" value={resort.city} onChange={e => handleResortChange(index, 'city', e.target.value)} placeholder="Orlando" />
+                        </div>
+                        <div>
+                          <label className="label">State</label>
+                          <input type="text" className="input-field" value={resort.state} onChange={e => handleResortChange(index, 'state', e.target.value)} placeholder="FL" />
+                        </div>
+                        <div>
+                          <label className="label">ZIP</label>
+                          <input type="text" className="input-field" value={resort.zip} onChange={e => handleResortChange(index, 'zip', e.target.value)} placeholder="32801" />
+                        </div>
+                      </div>
+                      <div className="grid-3">
+                        <div>
+                          <label className="label">Ownership Type</label>
+                          <input type="text" className="input-field" value={resort.ownershipType} onChange={e => handleResortChange(index, 'ownershipType', e.target.value)} placeholder="Deeded / Points" />
+                        </div>
+                        <div>
+                          <label className="label">Annual Maintenance Fee *</label>
+                          <input type="number" className="input-field" value={resort.maintenanceFee} onChange={e => handleResortChange(index, 'maintenanceFee', parseFloat(e.target.value) || 0)} placeholder="1200" />
+                        </div>
+                        <div>
+                          <label className="label">Inflation Rate (%)</label>
+                          <input type="number" step="0.1" className="input-field" value={resort.inflationRate} onChange={e => handleResortChange(index, 'inflationRate', parseFloat(e.target.value) || 0)} placeholder="8.3" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Drop Sheet Defaults */}
+            <div className="section-card">
+              <div className="section-header">
+                <div className="icon-wrapper"><TrendingUp size={20} /></div>
+                <h2 className="section-title">Drop Sheet Defaults</h2>
+              </div>
+              <div className="grid-3">
+                <div>
+                  <label className="label">Transfer Fees</label>
+                  <input type="number" className="input-field" value={formData.transferFees} onChange={e => handleInputChange('transferFees', parseFloat(e.target.value) || 0)} placeholder="1800" />
+                </div>
+                <div>
+                  <label className="label">Processing Fee</label>
+                  <input type="number" className="input-field" value={formData.processingFee} onChange={e => handleInputChange('processingFee', parseFloat(e.target.value) || 0)} placeholder="449" />
+                </div>
+                <div>
+                  <label className="label">MRA Value</label>
+                  <input type="number" className="input-field" value={formData.mra} onChange={e => handleInputChange('mra', parseFloat(e.target.value) || 0)} placeholder="12500" />
+                </div>
+              </div>
+            </div>
+
+            {/* Continue Button */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px' }}>
+              <button
+                onClick={goToDropSheets}
+                className="btn-primary"
+                style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                disabled={!formData.owner1Name || !activeResorts.some(r => r.maintenanceFee > 0)}
+              >
+                Generate Drop Sheets
+                <ChevronRight size={20} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── STEP 2: Drop Sheets ── */}
+        {step === 2 && (
+          <div className="fade-in">
+            <div className="no-print glass-card" style={{ padding: '28px', marginBottom: '24px' }}>
+              <h2 style={{ fontSize: '28px', fontWeight: '800', color: '#e2e8f0', marginBottom: '12px' }}>Drop Sheets</h2>
+              <p style={{ color: '#94a3b8', marginBottom: '20px', fontWeight: '500' }}>
+                Review and edit values as needed, then print or save each drop sheet to Google Drive.
+              </p>
+              <button onClick={() => setStep(1)} className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                <ChevronLeft size={20} />
+                Back to Input
+              </button>
+            </div>
+
+            {dropSheetData.map((sheet, idx) => (
+              <div key={idx}>
+                <div id={`drop-sheet-${idx}`}>
+
+                  {/* PAGE 1: Summary & Comparison */}
+                  <div className="print-page" style={{ background: 'white', padding: '20px', marginBottom: '20px', borderRadius: '12px' }}>
+                    <div className="print-header avoid-break" style={{ marginBottom: '20px' }}>
+                      <h1 style={{ fontSize: '20px', fontWeight: 'bold', marginBottom: '12px', color: '#000' }}>TIMESHARE LIQUIDATION ANALYSIS</h1>
+                      <div className="print-info-grid">
+                        <div><strong>Owner:</strong> {sheet.owner}</div>
+                        <div><strong>Resort:</strong> {sheet.resortName}</div>
+                        <div style={{ gridColumn: 'span 2', marginBottom: '15px' }}>
+                          <strong>Inflation Rate:</strong> {sheet.inflationRate}%
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="comparison-grid avoid-break" style={{ gap: '20px' }}>
+                      {/* Option 1 */}
+                      <div className="option-box" style={{ border: '3px solid #ef4444', borderRadius: '8px', padding: '16px', background: '#fff' }}>
+                        <div className="option-header" style={{ background: '#fee2e2', padding: '12px', marginBottom: '12px', borderLeft: '4px solid #ef4444', borderRadius: '4px' }}>
+                          <h2 style={{ fontSize: '14px', fontWeight: 'bold', margin: 0, color: '#991b1b' }}>Option 1: CURRENT CONTRACT</h2>
+                        </div>
+                        <div style={{ fontSize: '11px', lineHeight: '1.6' }}>
+                          <div style={{ marginBottom: '6px' }}><strong>Resort:</strong> {sheet.resortName}</div>
+                          <div style={{ marginBottom: '4px' }}>✗ Maintenance / Taxes Fees Inflation</div>
+                          <div style={{ marginBottom: '4px' }}>✗ Tied to Owner's Estate</div>
+                          <div style={{ marginBottom: '4px' }}>✗ Probate Liability</div>
+                          <div style={{ marginBottom: '4px' }}>✗ Deeded Property</div>
+                          <div style={{ marginBottom: '4px' }}>✗ External Exchange Fees</div>
+                          <div style={{ marginBottom: '4px' }}>✗ Travel Demand Index Risk</div>
+                          <div style={{ marginBottom: '4px' }}>✗ No Exit Strategy</div>
+                          <div style={{ marginBottom: '6px', fontSize: '10px', color: '#666' }}>Subject to House Bill 453 &amp; 7025</div>
+                        </div>
+                        <div className="cost-box" style={{ marginTop: '12px', padding: '12px', background: '#fee2e2', border: '2px solid #ef4444' }}>
+                          <div className="cost-row" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                            <strong>Annual Maintenance / Taxes Fee:</strong>
+                            <span>${formatCurrency(sheet.currentMaintFee)}</span>
+                          </div>
+                          <div className="cost-row" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                            <strong>30-Year Inflation Total:</strong>
+                            <span>${formatCurrency(sheet.maintFeeInflation)}</span>
+                          </div>
+                          <div className="cost-row" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                            <strong>Mortgage Payoff:</strong>
+                            <span>${formatCurrency(sheet.mortgage)}</span>
+                          </div>
+                          <div className="cost-total" style={{ paddingTop: '8px', borderTop: '2px solid #ef4444', fontSize: '12px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between' }}>
+                            <span>Total Cost of Ownership:</span>
+                            <span>${formatCurrency(sheet.totalCost)}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Option 2 */}
+                      <div className="option-box" style={{ border: '3px solid #10b981', borderRadius: '8px', padding: '16px', background: '#fff' }}>
+                        <div className="option-header" style={{ background: '#d1fae5', padding: '12px', marginBottom: '12px', borderLeft: '4px solid #10b981', borderRadius: '4px' }}>
+                          <h2 style={{ fontSize: '14px', fontWeight: 'bold', margin: 0, color: '#065f46' }}>Option 2: LIQUIDATION/TERMINATION</h2>
+                        </div>
+                        <div style={{ fontSize: '11px', lineHeight: '1.6' }}>
+                          <div style={{ marginBottom: '4px' }}>✓ Deed Liquidation/Termination</div>
+                          <div style={{ marginBottom: '4px' }}>✓ NO Maintenance / Taxes Fees</div>
+                          <div style={{ marginBottom: '4px' }}>✓ NOT Tied to Owner's Estate</div>
+                          <div style={{ marginBottom: '4px' }}>✓ Liability Protection</div>
+                          <div style={{ marginBottom: '4px' }}>✓ HB 453 Release</div>
+                          <div style={{ marginBottom: '4px' }}>✓ HB 7025 Release</div>
+                        </div>
+                        <div className="cost-box" style={{ marginTop: '12px', padding: '12px', background: editingDropSheet === idx ? '#fef3c7' : '#d1fae5', border: `2px solid ${editingDropSheet === idx ? '#f59e0b' : '#10b981'}` }}>
+                          <div className="no-print" style={{ marginBottom: '12px', textAlign: 'right' }}>
+                            <button
+                              onClick={() => setEditingDropSheet(editingDropSheet === idx ? null : idx)}
+                              style={{ background: editingDropSheet === idx ? '#f59e0b' : '#10b981', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                            >
+                              {editingDropSheet === idx ? <><Check size={14} /> Done</> : <><Edit2 size={14} /> Edit</>}
+                            </button>
+                          </div>
+                          <div className="cost-row" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                            <strong>Cost of Liquidation:</strong>
+                            <span>${formatCurrency(sheet.year20Cumulative)}</span>
+                          </div>
+                          <div className="cost-row" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                            <strong>Transfer Fees:</strong>
+                            {editingDropSheet === idx ? (
+                              <input type="number" value={sheet.transferFees} onChange={e => handleDropSheetEdit(idx, 'transferFees', e.target.value)} style={{ width: '100px', padding: '4px', border: '1px solid #ccc', borderRadius: '4px', textAlign: 'right' }} />
+                            ) : <span>${formatCurrency(sheet.transferFees)}</span>}
+                          </div>
+                          <div className="cost-row" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                            <strong>Processing Fee:</strong>
+                            {editingDropSheet === idx ? (
+                              <input type="number" value={sheet.processingFee} onChange={e => handleDropSheetEdit(idx, 'processingFee', e.target.value)} style={{ width: '100px', padding: '4px', border: '1px solid #ccc', borderRadius: '4px', textAlign: 'right' }} />
+                            ) : <span>${formatCurrency(sheet.processingFee)}</span>}
+                          </div>
+                          <div className="cost-row" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid #999' }}>
+                            <strong>Gross Liquidation Price:</strong>
+                            <span>${formatCurrency(sheet.grossLiquidation)}</span>
+                          </div>
+                          <div className="cost-row" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                            <strong>EBOC:</strong>
+                            <span>${formatCurrency(sheet.eboc)}</span>
+                          </div>
+                          <div className="cost-row" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                            <strong>MRA:</strong>
+                            {editingDropSheet === idx ? (
+                              <input type="number" value={sheet.mra} onChange={e => handleDropSheetEdit(idx, 'mra', e.target.value)} style={{ width: '100px', padding: '4px', border: '1px solid #ccc', borderRadius: '4px', textAlign: 'right' }} />
+                            ) : <span>${formatCurrency(sheet.mra)}</span>}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* PAGE 2: 30-Year Projection Table */}
+                  <div className="print-page" style={{ background: 'white', padding: '20px', marginBottom: '20px', borderRadius: '12px' }}>
+                    <h3 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '12px', color: '#000' }}>
+                      30-Year Maintenance / Taxes Fee Projection — {sheet.resortName}
+                    </h3>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+                      <thead>
+                        <tr style={{ background: '#f3f4f6', borderBottom: '2px solid #000' }}>
+                          <th style={{ padding: '8px', textAlign: 'left' }}>Year</th>
+                          <th style={{ padding: '8px', textAlign: 'right' }}>Annual Cost</th>
+                          <th style={{ padding: '8px', textAlign: 'right' }}>Cumulative Cost</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sheet.projections.map(y => (
+                          <tr key={y.year} style={{ borderBottom: '1px solid #ddd', background: y.year === 20 ? '#fef9c3' : 'transparent' }}>
+                            <td style={{ padding: '6px' }}>Year {y.year}{y.year === 20 ? ' ★' : ''}</td>
+                            <td style={{ padding: '6px', textAlign: 'right' }}>${formatCurrency(y.annualCost)}</td>
+                            <td style={{ padding: '6px', textAlign: 'right', fontWeight: 'bold' }}>${formatCurrency(y.cumulative)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* PAGE 3: Signature */}
+                  <div className="print-page" style={{ background: 'white', padding: '20px', marginBottom: '20px', borderRadius: '12px' }}>
+                    <div className="signature-section avoid-break">
+                      <h3 style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '15px' }}>OWNER ACKNOWLEDGMENT</h3>
+                      <div style={{ marginBottom: '25px' }}>
+                        <p style={{ marginBottom: '12px', fontSize: '11px' }}>
+                          The foregoing document was acknowledged before me this _____ day of _____________, 20____.
+                        </p>
+                        <div style={{ marginTop: '30px' }}>
+                          <div style={{ display: 'inline-block', width: '45%', marginRight: '5%' }}>
+                            <div className="signature-line" style={{ height: '30px' }}>&nbsp;</div>
+                            <div style={{ fontSize: '10px' }}>Signature</div>
+                          </div>
+                          <div style={{ display: 'inline-block', width: '45%' }}>
+                            <div className="signature-line" style={{ height: '30px' }}>&nbsp;</div>
+                            <div style={{ fontSize: '10px' }}>Date</div>
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ marginTop: '25px', fontSize: '11px' }}>
+                        <div style={{ fontWeight: 'bold', marginBottom: '10px' }}>Please initial your selection:</div>
+                        <div style={{ marginBottom: '8px', lineHeight: '1.6' }}>OPTION 1 (Current Contract): _______ ACCEPT &nbsp;&nbsp; _______ DECLINE</div>
+                        <div style={{ lineHeight: '1.6' }}>OPTION 2 (Liquidation): _______ ACCEPT &nbsp;&nbsp; _______ DECLINE</div>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>{/* end drop-sheet container */}
+
+                {/* Action Buttons */}
+                <div className="no-print" style={{ marginBottom: '40px', textAlign: 'center' }}>
+                  <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '12px' }}>
+                    <button
+                      onClick={() => printDropSheet(idx)}
+                      className="btn-primary"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '10px' }}
+                    >
+                      <Printer size={20} />
+                      Print {sheet.resortName}
+                    </button>
+                    <SaveButton idx={idx} />
+                  </div>
+                  {savedLinks[idx] && (
+                    <div style={{ marginTop: '8px', padding: '12px 20px', background: '#0a2a1a', border: '1px solid #10b981', borderRadius: '12px', display: 'inline-block' }}>
+                      <span style={{ color: '#34d399', fontSize: '13px', fontWeight: '600' }}>
+                        ✅ Saved &amp; logged to your Google Sheet — &nbsp;
+                      </span>
+                      <a href={savedLinks[idx]} target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', fontSize: '13px', fontWeight: '700' }}>
+                        Open PDF in Drive →
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.render(<TimeshareCalculator />, document.getElementById('root'));
+</script>
+</body>
+</html>
